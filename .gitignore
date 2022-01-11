@@ -1,0 +1,12 @@
+*.swp
+**/vendor/
+**/.vscode/**/*
+**/.vs/
+**/.ionide/
+**/.idea/
+**/.DS_Store
+*.iml
+**/debug.test
+dist
+output
+registrygen
