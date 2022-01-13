@@ -55,14 +55,16 @@ Usage:
   registrygen metadata <args> [flags]
 
 Flags:
-      --category string     The category for the package. Value must match one of the keys in the map: map[cloud:Cloud database:Database infrastructure:Infrastructure monitoring:Monitoring network:Network utility:Utility vcs:Version Control System]
-      --component           Whether or not this package is a component and not a provider
-  -h, --help                help for metadata
-      --publisher string    The publisher's display name to be shown in the package. This will default to Pulumi
-      --repoSlug string     The repository slug e.g. pulumi/pulumi-provider
-  -s, --schemaFile string   Relative path to the schema.json file from the root of the repository
-      --title string        The display name of the package. If ommitted, the name of the package will be used
-      --version string      The version of the package
+      --category string         The category for the package. Value must match one of the keys in the map: map[cloud:Cloud database:Database infrastructure:Infrastructure monitoring:Monitoring network:Network utility:Utility vcs:Version Control System]
+      --component               Whether or not this package is a component and not a provider
+  -h, --help                    help for metadata
+      --metadataDir string      The location to save the metadata - this will default to the folder structure that the registry expects (themes/default/data/registry/packages)
+      --packageDocsDir string   The location to save the package docs - this will default to the folder structure that the registry expects (themes/default/data/registry/packages)
+      --publisher string        The publisher's display name to be shown in the package. This will default to Pulumi
+      --repoSlug string         The repository slug e.g. pulumi/pulumi-provider
+  -s, --schemaFile string       Relative path to the schema.json file from the root of the repository
+      --title string            The display name of the package. If ommitted, the name of the package will be used
+      --version string          The version of the package
 ```
 
 ### Generating API docs and the package nav tree
