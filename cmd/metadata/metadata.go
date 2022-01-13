@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,6 +35,8 @@ func PackageMetadataCmd() *cobra.Command {
 	var schemaFile string
 	var title string
 	var version string
+	var metadataDir string
+	var packageDocsDir string
 
 	cmd := &cobra.Command{
 		Use:   "metadata <args>",
@@ -47,15 +47,10 @@ func PackageMetadataCmd() *cobra.Command {
 			// construct a file that we can download and read
 			schemaFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s",
 				repoSlug, version, schemaFile)
-			resp, err := http.Get(schemaFilePath)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("downloading schema file from %s", schemaFile))
-			}
 
-			defer resp.Body.Close()
-			schema, err := ioutil.ReadAll(resp.Body)
+			schema, err := readRemoteFile(schemaFilePath)
 			if err != nil {
-				return errors.Wrap(err, "reading contents of schema file")
+				return err
 			}
 
 			// The source schema can be in YAML format. If that's the case
@@ -199,14 +194,38 @@ func PackageMetadataCmd() *cobra.Command {
 				return errors.Wrap(err, "generating package metadata")
 			}
 
-			cwd, err := os.Getwd()
-			if err != nil {
-				panic(err)
+			if metadataDir == "" {
+				// if the user hasn't specified an metadataDir, we will default to
+				// the path within the registry folder.
+				metadataDir = "themes/default/data/registry/packages"
+			}
+			metadataFileName := fmt.Sprintf("%s.yaml", mainSpec.Name)
+			if err := pkg.EmitFile(metadataDir, metadataFileName, b); err != nil {
+				return errors.Wrap(err, "writing metadata file")
 			}
 
-			metadataFileName := fmt.Sprintf("%s.yaml", mainSpec.Name)
-			if err := pkg.EmitFile(filepath.Join(cwd, "output"), metadataFileName, b); err != nil {
-				return errors.Wrap(err, "writing metadata file")
+			if packageDocsDir == "" {
+				// if the user hasn't specified an packageDocsDir, we will default to
+				// the path within the registry folder.
+				packageDocsDir = fmt.Sprintf("themes/default/content/registry/packages/%s", mainSpec.Name)
+			}
+
+			requiredFiles := []string{
+				"_index.md",
+				"installation-configuration.md",
+			}
+
+			for _, requiredFile := range requiredFiles {
+				requiredFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/docs/%s",
+					repoSlug, version, requiredFile)
+				details, err := readRemoteFile(requiredFilePath)
+				if err != nil {
+					return err
+				}
+
+				if err := pkg.EmitFile(packageDocsDir, requiredFile, details); err != nil {
+					return errors.Wrap(err, fmt.Sprintf("writing %s file", requiredFile))
+				}
 			}
 
 			return nil
@@ -224,12 +243,31 @@ func PackageMetadataCmd() *cobra.Command {
 	cmd.Flags().StringVar(&title, "title", "", "The display name of the package. If ommitted, the name of the "+
 		"package will be used")
 	cmd.Flags().BoolVar(&component, "component", false, "Whether or not this package is a component and not a provider")
+	cmd.Flags().StringVar(&metadataDir, "metadataDir", "", "The location to save the metadata - this will default to the folder "+
+		"structure that the registry expects (themes/default/data/registry/packages)")
+	cmd.Flags().StringVar(&packageDocsDir, "packageDocsDir", "", "The location to save the package docs - this will default to the folder "+
+		"structure that the registry expects (themes/default/data/registry/packages)")
 
 	cmd.MarkFlagRequired("schemaFile")
 	cmd.MarkFlagRequired("version")
 	cmd.MarkFlagRequired("repoSlug")
 
 	return cmd
+}
+
+func readRemoteFile(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("downloading remote file from %s", url))
+	}
+
+	defer resp.Body.Close()
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading contents of remote file")
+	}
+
+	return contents, nil
 }
 
 func getPackageCategory(mainSpec *pschema.PackageSpec, categoryOverrideStr string) (pkg.PackageCategory, error) {
