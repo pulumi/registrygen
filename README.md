@@ -42,7 +42,7 @@ The metadata file contains information sourced from the package's own Pulumi sch
 following command:
 
 ```bash
-$ registrygen metadata --repoSlug pulumi/pulumi-aws --version v4.34.0 --schemaFile=provider/cmd/pulumi-resource-scaleway/schema.json
+$ registrygen metadata --repoSlug pulumi/pulumi-aws --version v4.34.0 --schemaFile=provider/cmd/pulumi-resource-aws/schema.json
 ```
 
 The available parameters can be found as follows:
@@ -73,7 +73,7 @@ Package API docs are used by the Pulumi Registry as part of the package listing.
 The `docs` command can be invoked via the following command:
 
 ```bash
-registrygen docs --repoSlug pulumi/pulumi-aws --version v4.34.0 --schemaFile=provider/cmd/pulumi-resource-scaleway/schema.json --docsOutDir output/api-docs --packageTreeJSONOutDir output/navs
+registrygen docs --repoSlug pulumi/pulumi-aws --version v4.34.0 --schemaFile=provider/cmd/pulumi-resource-aws/schema.json --docsOutDir output/api-docs --packageTreeJSONOutDir output/navs
 ```
 
 The available parameters can be found as follows:
