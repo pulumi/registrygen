@@ -5,6 +5,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/common/util/logging"
 	"github.com/pulumi/registrygen/cmd/docs"
 	"github.com/pulumi/registrygen/cmd/metadata"
+	"github.com/pulumi/registrygen/cmd/version"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +34,7 @@ func RootCmd() *cobra.Command {
 
 	rootCmd.AddCommand(docs.ResourceDocsCmd())
 	rootCmd.AddCommand(metadata.PackageMetadataCmd())
+	rootCmd.AddCommand(version.Command())
 
 	return rootCmd
 }
