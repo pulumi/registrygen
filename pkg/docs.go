@@ -1,4 +1,4 @@
-package docs
+package pkg
 
 import (
 	"embed"
@@ -7,20 +7,17 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"github.com/golang/glog"
-	"github.com/pkg/errors"
 	docsgen "github.com/pulumi/pulumi/pkg/v3/codegen/docs"
 	"github.com/pulumi/pulumi/pkg/v3/codegen/dotnet"
 	go_gen "github.com/pulumi/pulumi/pkg/v3/codegen/go"
 	"github.com/pulumi/pulumi/pkg/v3/codegen/nodejs"
 	pschema "github.com/pulumi/pulumi/pkg/v3/codegen/schema"
-	"github.com/pulumi/registrygen/pkg"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -38,32 +35,41 @@ var (
 	overlays embed.FS
 )
 
+func getRepoSlug(repoURL string) (string, error) {
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing repo url %s: %w", repoURL, err)
+	}
+
+	return u.Path, nil
+}
+
 func getPulumiPackageFromSchema(docsOutDir string) (*pschema.Package, error) {
 	overlaysSchemaFile, err := getOverlaySchema()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting overlays schema")
+		return nil, fmt.Errorf("getting overlays schema: %w", err)
 	}
 
 	if overlaysSchemaFile != nil {
 		overlaySpec := &pschema.PackageSpec{}
 
 		if err := json.Unmarshal(overlaysSchemaFile, overlaySpec); err != nil {
-			return nil, errors.Wrap(err, "unmarshalling overlay schema into a PackageSpec")
+			return nil, fmt.Errorf("unmarshalling overlay schema into a PackageSpec: %w", err)
 		}
 
 		if err := mergeOverlaySchemaSpec(mainSpec, overlaySpec); err != nil {
-			return nil, errors.Wrap(err, "merging the overlay schema spec with the main spec")
+			return nil, fmt.Errorf("merging the overlay schema spec with the main spec: %w", err)
 		}
 	}
 
 	// Delete existing docs before generating new ones.
 	if err := os.RemoveAll(docsOutDir); err != nil {
-		return nil, errors.Wrapf(err, "deleting provider directory %v", docsOutDir)
+		return nil, fmt.Errorf("deleting provider directory %v: %w", docsOutDir, err)
 	}
 
 	pulPkg, err := pschema.ImportSpec(*mainSpec, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error importing package spec: %v", err)
+		return nil, fmt.Errorf("error importing package spec: %w", err)
 	}
 
 	docsgen.Initialize(tool, pulPkg)
@@ -74,7 +80,6 @@ func getPulumiPackageFromSchema(docsOutDir string) (*pschema.Package, error) {
 // getOverlaySchema returns the overlay file contents for the package.
 // Returns nil if there is no overlay file for the package.
 func getOverlaySchema() ([]byte, error) {
-	glog.Infoln("Checking if the package has an overlays schema...")
 	// Test the expected path for an overlays file. If there is no such file, assume
 	// that the package has no overlays.
 	overlayFilePath := filepath.Join("overlays", mainSpec.Name, "overlays.json")
@@ -82,10 +87,9 @@ func getOverlaySchema() ([]byte, error) {
 	if err != nil {
 		pathErr := err.(*fs.PathError)
 		if pathErr.Err == fs.ErrNotExist {
-			glog.Infoln("Didn't find an overlays schema...")
 			overlayFilePath = ""
 		} else {
-			return nil, errors.Wrap(err, "checking embedded overlays fs for overlay file")
+			return nil, fmt.Errorf("checking embedded overlays fs for overlay file: %w", err)
 		}
 	}
 
@@ -93,88 +97,63 @@ func getOverlaySchema() ([]byte, error) {
 		return nil, nil
 	}
 
-	glog.Infoln("Using the overlays schema file from", overlayFilePath)
-
 	b, err := ioutil.ReadAll(f)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading overlay file from embedded fs")
+		return nil, fmt.Errorf("reading overlay file from embedded fs: %w", err)
 	}
 
 	return b, nil
 }
 
-func ResourceDocsCmd() *cobra.Command {
-	var schemaFile string
-	var repoSlug string
-	var version string
-	var docsOutDir string
-	var packageTreeJSONOutDir string
-
-	cmd := &cobra.Command{
-		Use:   "docs",
-		Short: "Generate API Docs docs from a Pulumi schema file",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// we should be able to take the repo URL + the version + the schema url and
-			// construct a file that we can download and read
-			schemaFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s",
-				repoSlug, version, schemaFile)
-			resp, err := http.Get(schemaFilePath)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("downloading schema file from %s", schemaFile))
-			}
-
-			defer resp.Body.Close()
-			schema, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return errors.Wrap(err, "reading contents of schema file")
-			}
-
-			// The source schema can be in YAML format. If that's the case
-			// convert it to JSON first.
-			if strings.HasSuffix(schemaFile, ".yaml") {
-				schema, err = yaml.YAMLToJSON(schema)
-				if err != nil {
-					return errors.Wrap(err, "reading YAML schema")
-				}
-			}
-
-			mainSpec = &pschema.PackageSpec{}
-			if err := json.Unmarshal(schema, mainSpec); err != nil {
-				return errors.Wrap(err, "unmarshalling schema into a PackageSpec")
-			}
-			mainSpec.Version = version
-
-			pulPkg, err := getPulumiPackageFromSchema(docsOutDir)
-			if err != nil {
-				return errors.Wrap(err, "generating package from schema file")
-			}
-
-			if err := generateDocsFromSchema(docsOutDir, pulPkg); err != nil {
-				return errors.Wrap(err, "generating docs from schema")
-			}
-
-			if err := generatePackageTree(packageTreeJSONOutDir, pulPkg.Name); err != nil {
-				return errors.Wrap(err, "generating package tree")
-			}
-
-			return nil
-		},
+func GenerateDocs(repoURL, version, schemaFile, docsOutDir, packageTreeJSONOutDir string) error {
+	repoSlug, err := getRepoSlug(repoURL)
+	if err != nil {
+		return err
 	}
 
-	cmd.Flags().StringVarP(&schemaFile, "schemaFile", "s", "", "Path to the schema.json file")
-	cmd.Flags().StringVar(&repoSlug, "repoSlug", "", "The repository slug e.g. pulumi/pulumi-provider")
-	cmd.Flags().StringVar(&version, "version", "", "The version of the package")
-	cmd.Flags().StringVar(&docsOutDir, "docsOutDir", "", "The directory path to where the docs will be written to")
-	cmd.Flags().StringVar(&packageTreeJSONOutDir, "packageTreeJSONOutDir", "", "The directory path to write the "+
-		"package tree JSON file to")
+	// we should be able to take the repo URL + the version + the schema url and
+	// construct a file that we can download and read
+	schemaFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s", repoSlug, version, schemaFile)
+	resp, err := http.Get(schemaFilePath)
+	if err != nil {
+		return fmt.Errorf("downloading schema file from %s: %w", schemaFile, err)
+	}
 
-	cmd.MarkFlagRequired("repoSlug")
-	cmd.MarkFlagRequired("docsOutDir")
-	cmd.MarkFlagRequired("packageTreeJSONOutDir")
-	cmd.MarkFlagRequired("schemaFile")
-	cmd.MarkFlagRequired("version")
+	defer resp.Body.Close()
+	schema, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading contents of schema file: %w", err)
+	}
 
-	return cmd
+	// The source schema can be in YAML format. If that's the case
+	// convert it to JSON first.
+	if strings.HasSuffix(schemaFile, ".yaml") {
+		schema, err = yaml.YAMLToJSON(schema)
+		if err != nil {
+			return fmt.Errorf("reading YAML schema: %w", err)
+		}
+	}
+
+	mainSpec = &pschema.PackageSpec{}
+	if err := json.Unmarshal(schema, mainSpec); err != nil {
+		return fmt.Errorf("unmarshalling schema into a PackageSpec: %w", err)
+	}
+	mainSpec.Version = version
+
+	pulPkg, err := getPulumiPackageFromSchema(docsOutDir)
+	if err != nil {
+		return fmt.Errorf("generating package from schema file: %w", err)
+	}
+
+	if err := generateDocsFromSchema(docsOutDir, pulPkg); err != nil {
+		return fmt.Errorf("generating docs from schema: %w", err)
+	}
+
+	if err := generatePackageTree(packageTreeJSONOutDir, pulPkg.Name); err != nil {
+		return fmt.Errorf("generating package tree: %w", err)
+	}
+
+	return nil
 }
 
 // mergeOverlaySchemaSpec merges the resources, types and language info from the overlay schema spec
@@ -183,18 +162,14 @@ func mergeOverlaySchemaSpec(mainSpec *pschema.PackageSpec, overlaySpec *pschema.
 	// Merge the overlay schema spec into the main schema spec.
 	for key, value := range overlaySpec.Types {
 		if _, ok := mainSpec.Types[key]; ok {
-			glog.Infoln(key, "was skipped because it was already in the main schema spec")
 			continue
 		}
-		glog.Infoln(key, "adding overlay type")
 		mainSpec.Types[key] = value
 	}
 	for key, value := range overlaySpec.Resources {
 		if _, ok := mainSpec.Resources[key]; ok {
-			glog.Infoln(key, "was skipped because it was already in the main schema spec")
 			continue
 		}
-		glog.Infoln(key, "adding overlay resource")
 		mainSpec.Resources[key] = value
 	}
 	for lang, overlayLanguageInfo := range overlaySpec.Language {
@@ -202,17 +177,16 @@ func mergeOverlaySchemaSpec(mainSpec *pschema.PackageSpec, overlaySpec *pschema.
 		case "go":
 			var mainSchemaPkgInfo go_gen.GoPackageInfo
 			if err := json.Unmarshal(mainSpec.Language[lang], &mainSchemaPkgInfo); err != nil {
-				return errors.Wrap(err, "error un-marshalling Go package info from the main schema spec")
+				return fmt.Errorf("error un-marshalling Go package info from the main schema spec: %w", err)
 			}
 
 			var overlaySchemaPkgInfo go_gen.GoPackageInfo
 			if err := json.Unmarshal(overlayLanguageInfo, &overlaySchemaPkgInfo); err != nil {
-				return errors.Wrap(err, "error un-marshalling Go package info from the overlay schema spec")
+				return fmt.Errorf("error un-marshalling Go package info from the overlay schema spec: %w", err)
 			}
 
 			for key, value := range overlaySchemaPkgInfo.ModuleToPackage {
 				if _, ok := mainSchemaPkgInfo.ModuleToPackage[key]; ok {
-					glog.Infoln("Go ModuleToPackage key", key, "was skipped because it was already in the main schema's language info")
 					continue
 				}
 				mainSchemaPkgInfo.ModuleToPackage[key] = value
@@ -221,23 +195,22 @@ func mergeOverlaySchemaSpec(mainSpec *pschema.PackageSpec, overlaySpec *pschema.
 			// Override the language info for Go in the main schema spec.
 			b, err := json.Marshal(mainSchemaPkgInfo)
 			if err != nil {
-				return errors.Wrap(err, "error marshalling Go package info")
+				return fmt.Errorf("error marshalling Go package info: %w", err)
 			}
 			mainSpec.Language[lang] = b
 		case "nodejs":
 			var mainSchemaPkgInfo nodejs.NodePackageInfo
 			if err := json.Unmarshal(mainSpec.Language[lang], &mainSchemaPkgInfo); err != nil {
-				return errors.Wrap(err, "error un-marshalling NodeJS package info from the main schema spec")
+				return fmt.Errorf("error un-marshalling NodeJS package info from the main schema spec: %w", err)
 			}
 
 			var overlaySchemaPkgInfo nodejs.NodePackageInfo
 			if err := json.Unmarshal(overlayLanguageInfo, &overlaySchemaPkgInfo); err != nil {
-				return errors.Wrap(err, "error un-marshalling NodeJS package info from the overlay schema spec")
+				return fmt.Errorf("error un-marshalling NodeJS package info from the overlay schema spec: %w", err)
 			}
 
 			for key, value := range overlaySchemaPkgInfo.ModuleToPackage {
 				if _, ok := mainSchemaPkgInfo.ModuleToPackage[key]; ok {
-					glog.Infoln("NodeJS ModuleToPackage key", key, "was skipped because it was already in the main schema's language info")
 					continue
 				}
 				mainSchemaPkgInfo.ModuleToPackage[key] = value
@@ -246,23 +219,22 @@ func mergeOverlaySchemaSpec(mainSpec *pschema.PackageSpec, overlaySpec *pschema.
 			// Override the language info for NodeJS in the main schema spec.
 			b, err := json.Marshal(mainSchemaPkgInfo)
 			if err != nil {
-				return errors.Wrap(err, "error marshalling NodeJS package info")
+				return fmt.Errorf("error marshalling NodeJS package info: %w", err)
 			}
 			mainSpec.Language[lang] = b
 		case "csharp":
 			var mainSchemaPkgInfo dotnet.CSharpPackageInfo
 			if err := json.Unmarshal(mainSpec.Language[lang], &mainSchemaPkgInfo); err != nil {
-				return errors.Wrap(err, "error un-marshalling C# package info from the main schema spec")
+				return fmt.Errorf("error un-marshalling C# package info from the main schema spec: %w", err)
 			}
 
 			var overlaySchemaPkgInfo dotnet.CSharpPackageInfo
 			if err := json.Unmarshal(overlayLanguageInfo, &overlaySchemaPkgInfo); err != nil {
-				return errors.Wrap(err, "error un-marshalling C# package info from overlay schema spec")
+				return fmt.Errorf("error un-marshalling C# package info from overlay schema spec: %w", err)
 			}
 
 			for key, value := range overlaySchemaPkgInfo.Namespaces {
 				if _, ok := mainSchemaPkgInfo.Namespaces[key]; ok {
-					glog.Infoln("C# Namespaces key", key, "was skipped because it was already in the main schema's language info")
 					continue
 				}
 				mainSchemaPkgInfo.Namespaces[key] = value
@@ -270,7 +242,7 @@ func mergeOverlaySchemaSpec(mainSpec *pschema.PackageSpec, overlaySpec *pschema.
 			// Override the language info for C# in the main schema spec.
 			b, err := json.Marshal(mainSchemaPkgInfo)
 			if err != nil {
-				return errors.Wrap(err, "error marshalling C# package info")
+				return fmt.Errorf("error marshalling C# package info: %w", err)
 			}
 			mainSpec.Language[lang] = b
 		}
@@ -282,12 +254,12 @@ func mergeOverlaySchemaSpec(mainSpec *pschema.PackageSpec, overlaySpec *pschema.
 func generateDocsFromSchema(outDir string, pulPkg *pschema.Package) error {
 	files, err := docsgen.GeneratePackage(tool, pulPkg)
 	if err != nil {
-		return errors.Wrap(err, "generating Pulumi package")
+		return fmt.Errorf("generating Pulumi package: %w", err)
 	}
 
 	for f, contents := range files {
-		if err := pkg.EmitFile(outDir, f, contents); err != nil {
-			return errors.Wrapf(err, "emitting file %v", f)
+		if err := EmitFile(outDir, f, contents); err != nil {
+			return fmt.Errorf("emitting file %v: %w", f, err)
 		}
 	}
 	return nil
@@ -296,17 +268,17 @@ func generateDocsFromSchema(outDir string, pulPkg *pschema.Package) error {
 func generatePackageTree(outDir string, pkgName string) error {
 	tree, err := docsgen.GeneratePackageTree()
 	if err != nil {
-		return errors.Wrap(err, "generating the package tree")
+		return fmt.Errorf("generating the package tree: %w", err)
 	}
 
 	b, err := json.Marshal(tree)
 	if err != nil {
-		return errors.Wrap(err, "marshalling the package tree")
+		return fmt.Errorf("marshalling the package tree: %w", err)
 	}
 
 	filename := fmt.Sprintf("%s.json", pkgName)
-	if err := pkg.EmitFile(outDir, filename, b); err != nil {
-		return errors.Wrap(err, "writing the package tree")
+	if err := EmitFile(outDir, filename, b); err != nil {
+		return fmt.Errorf("writing the package tree: %w", err)
 	}
 
 	return nil

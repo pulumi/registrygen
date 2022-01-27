@@ -3,13 +3,13 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang/glog"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/golang/glog"
 	"github.com/pkg/errors"
 	pschema "github.com/pulumi/pulumi/pkg/v3/codegen/schema"
 	"github.com/pulumi/registrygen/pkg"
@@ -166,8 +166,6 @@ func PackageMetadataCmd() *cobra.Command {
 			}
 
 			if native && component {
-				glog.Warning("Package found to be marked as both native and component. Will proceed with " +
-					"tagging the package as a component but not native.")
 				native = false
 			}
 

@@ -70,20 +70,20 @@ Flags:
 ### Generating API docs and the package nav tree
 
 Package API docs are used by the Pulumi Registry as part of the package listing. The api docs are source from the Package schema.
-The `docs` command can be invoked via the following command:
+The `generate docs` command can be invoked via the following command:
 
 ```bash
-registrygen docs --repoSlug pulumi/pulumi-aws --version v4.34.0 --schemaFile=provider/cmd/pulumi-resource-aws/schema.json --docsOutDir output/api-docs --packageTreeJSONOutDir output/navs
+registrygen generate docs --repoSlug pulumi/pulumi-aws --version v4.34.0 --schemaFile=provider/cmd/pulumi-resource-aws/schema.json --docsOutDir output/api-docs --packageTreeJSONOutDir output/navs
 ```
 
 The available parameters can be found as follows:
 
 ```bash
-$ registrygen docs --help
+$ registrygen generate docs --help
 Generate API Docs docs from a Pulumi schema file
 
 Usage:
-  registrygen docs [flags]
+  registrygen generate docs [flags]
 
 Flags:
       --docsOutDir string              The directory path to where the docs will be written to
@@ -92,6 +92,31 @@ Flags:
       --repoSlug string                The repository slug e.g. pulumi/pulumi-provider
   -s, --schemaFile string              Path to the schema.json file
       --version string                 The version of the package
+```
+
+### Generating all docs for packages in a registry
+
+We can regenerate the docs for all of the packages in a given registry location. The `generate all-docs` command can be
+invoked via the following command:
+
+```bash
+registrygen generate all-docs 
+```
+
+The available parameters can be found as follows:
+
+```bash
+$ registrygen generate all-docs help
+Generate API docs for an entire registry
+
+Usage:
+  registrygen generate all-docs [flags]
+
+Flags:
+      --docsOutDir string              The directory path to where the docs will be written to (default "content/registry/packages")
+  -h, --help                           help for all-docs
+      --packageTreeJSONOutDir string   The directory path to write the package tree JSON file to (default "static/registry/packages/navs")
+      --registryPackagesPath string    The path to the registry metadata files (default "../registry/themes/default/data/registry/packages/")
 ```
 
 ### The API Docs Templates
