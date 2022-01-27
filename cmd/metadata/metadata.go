@@ -43,7 +43,7 @@ func PackageMetadataCmd() *cobra.Command {
 		Use:   "metadata <args>",
 		Short: "Generate package metadata from Pulumi schema",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			
+
 			if schemaFile == "" && providerName == "" {
 				return fmt.Errorf("`providerName` is required when `schemaFile` is not specified")
 			}
@@ -60,6 +60,10 @@ func PackageMetadataCmd() *cobra.Command {
 			schema, err := readRemoteFile(schemaFilePath)
 			if err != nil {
 				return err
+			}
+
+			if schema == nil {
+				return fmt.Errorf("unable to get contents of schemaFile %q", schemaFilePath)
 			}
 
 			// The source schema can be in YAML format. If that's the case
@@ -223,7 +227,6 @@ func PackageMetadataCmd() *cobra.Command {
 				"_index.md",
 				"installation-configuration.md",
 			}
-
 			for _, requiredFile := range requiredFiles {
 				requiredFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/docs/%s",
 					repoSlug, version, requiredFile)
@@ -273,6 +276,11 @@ func readRemoteFile(url string) ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		// this ultimately checks that the file exists and has content
+		return nil, nil
+	}
+
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading contents of remote file")
