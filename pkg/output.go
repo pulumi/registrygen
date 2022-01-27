@@ -13,6 +13,11 @@ import (
 // EmitFile writes the file with the provided contents in the output
 // directory outDir.
 func EmitFile(outDir, relPath string, contents []byte) error {
+	if contents == nil {
+		return nil
+	}
+
+	// we only want to write a file if there are contents to write
 	p := path.Join(outDir, relPath)
 	if err := tools.EnsureDir(path.Dir(p)); err != nil {
 		return errors.Wrap(err, "creating directory")
