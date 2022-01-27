@@ -13,6 +13,7 @@ builds:
       - arm64
     binary: registrygen
     main: ./main.go
+    ldflags: -X github.com/pulumi/registrygen/pkg/version.Version={{.Version}}
 archives:
   - name_template: "{{ .Binary }}-{{ .Tag }}-{{ .Os }}-{{ .Arch }}"
     format_overrides:
