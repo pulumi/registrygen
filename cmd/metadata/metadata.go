@@ -29,6 +29,7 @@ var featuredPackages = []string{
 
 func PackageMetadataCmd() *cobra.Command {
 	var repoSlug string
+	var providerName string
 	var categoryStr string
 	var component bool
 	var publisher string
@@ -42,6 +43,14 @@ func PackageMetadataCmd() *cobra.Command {
 		Use:   "metadata <args>",
 		Short: "Generate package metadata from Pulumi schema",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			
+			if schemaFile == "" && providerName == "" {
+				return fmt.Errorf("`providerName` is required when `schemaFile` is not specified")
+			}
+
+			if schemaFile == "" {
+				schemaFile = fmt.Sprintf("provider/cmd/pulumi-resource-%s/schema.json", providerName)
+			}
 
 			// we should be able to take the repo URL + the version + the schema url and
 			// construct a file that we can download and read
@@ -233,14 +242,17 @@ func PackageMetadataCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&repoSlug, "repoSlug", "", "The repository slug e.g. pulumi/pulumi-provider")
+	cmd.Flags().StringVar(&providerName, "providerName", "", "The name of the provider e.g. aws, aws-native. "+
+		"Required when there is no schemaFile flag specified.")
 	cmd.Flags().StringVarP(&schemaFile, "schemaFile", "s", "", "Relative path to the schema.json file from "+
-		"the root of the repository")
+		"the root of the repository. If not schemaFile is specified, then providerName is required so the schemaFile path can "+
+		"be inferred to be provider/cmd/pulumi-resource-<providerName>/schema.json")
 	cmd.Flags().StringVar(&version, "version", "", "The version of the package")
 	cmd.Flags().StringVar(&categoryStr, "category", "", fmt.Sprintf("The category for the package. Value must "+
 		"match one of the keys in the map: %v", pkg.CategoryNameMap))
 	cmd.Flags().StringVar(&publisher, "publisher", "", "The publisher's display name to be shown in the package. "+
 		"This will default to Pulumi")
-	cmd.Flags().StringVar(&title, "title", "", "The display name of the package. If ommitted, the name of the "+
+	cmd.Flags().StringVar(&title, "title", "", "The display name of the package. If omitted, the name of the "+
 		"package will be used")
 	cmd.Flags().BoolVar(&component, "component", false, "Whether or not this package is a component and not a provider")
 	cmd.Flags().StringVar(&metadataDir, "metadataDir", "", "The location to save the metadata - this will default to the folder "+
@@ -248,7 +260,6 @@ func PackageMetadataCmd() *cobra.Command {
 	cmd.Flags().StringVar(&packageDocsDir, "packageDocsDir", "", "The location to save the package docs - this will default to the folder "+
 		"structure that the registry expects (themes/default/data/registry/packages)")
 
-	cmd.MarkFlagRequired("schemaFile")
 	cmd.MarkFlagRequired("version")
 	cmd.MarkFlagRequired("repoSlug")
 
