@@ -38,6 +38,8 @@ func PackageMetadataCmd() *cobra.Command {
 	var version string
 	var metadataDir string
 	var packageDocsDir string
+	var host string
+	var apiHost string
 
 	cmd := &cobra.Command{
 		Use:   "metadata <args>",
@@ -54,8 +56,7 @@ func PackageMetadataCmd() *cobra.Command {
 
 			// we should be able to take the repo URL + the version + the schema url and
 			// construct a file that we can download and read
-			schemaFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s",
-				repoSlug, version, schemaFile)
+			schemaFilePath := fmt.Sprintf("%s/%s/%s/%s", host, repoSlug, version, schemaFile)
 
 			schema, err := readRemoteFile(schemaFilePath)
 			if err != nil {
@@ -226,8 +227,7 @@ func PackageMetadataCmd() *cobra.Command {
 				"installation-configuration.md",
 			}
 			for _, requiredFile := range requiredFiles {
-				requiredFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/docs/%s",
-					repoSlug, version, requiredFile)
+				requiredFilePath := fmt.Sprintf("%s/%s/%s/docs/%s", host, repoSlug, version, requiredFile)
 				details, err := readRemoteFile(requiredFilePath)
 				if err != nil {
 					return err
@@ -260,6 +260,8 @@ func PackageMetadataCmd() *cobra.Command {
 		"structure that the registry expects (themes/default/data/registry/packages)")
 	cmd.Flags().StringVar(&packageDocsDir, "packageDocsDir", "", "The location to save the package docs - this will default to the folder "+
 		"structure that the registry expects (themes/default/data/registry/packages)")
+	cmd.Flags().StringVar(&host, "host", "https://raw.githubusercontent.com", "The url for source control host")
+	cmd.Flags().StringVar(&apiHost, "apiHost", "https://api.github.com", "The url for source control api")
 
 	cmd.MarkFlagRequired("version")
 	cmd.MarkFlagRequired("repoSlug")

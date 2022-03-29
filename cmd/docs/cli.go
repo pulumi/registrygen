@@ -29,6 +29,7 @@ func AllPackageDocsCmd() *cobra.Command {
 	var registryPackagesPath string
 	var baseDocsOutDir string
 	var packageTreeJSONOutDir string
+	var host string
 
 	cmd := &cobra.Command{
 		Use:   "all-docs",
@@ -58,7 +59,7 @@ func AllPackageDocsCmd() *cobra.Command {
 				}
 
 				docsOutDir := filepath.Join(baseDocsOutDir, metadata.Name, "api-docs")
-				if err := pkg.GenerateDocs(metadata.RepoURL, metadata.Version, metadata.SchemaFilePath, docsOutDir, packageTreeJSONOutDir); err != nil {
+				if err := pkg.GenerateDocs(host, metadata.RepoURL, metadata.Version, metadata.SchemaFilePath, docsOutDir, packageTreeJSONOutDir); err != nil {
 					return fmt.Errorf("error generating docs for %s: %w", metadata.Name, err)
 				}
 			}
@@ -71,6 +72,7 @@ func AllPackageDocsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&baseDocsOutDir, "docsOutDir", "content/registry/packages", "The directory path to where the docs will be written to")
 	cmd.Flags().StringVar(&packageTreeJSONOutDir, "packageTreeJSONOutDir", "static/registry/packages/navs", "The directory path to write the "+
 		"package tree JSON file to")
+	cmd.Flags().StringVar(&host, "host", "https://raw.githubusercontent.com", "The url for source control host")
 
 	return cmd
 }
@@ -81,12 +83,13 @@ func PackageDocsCmd() *cobra.Command {
 	var version string
 	var docsOutDir string
 	var packageTreeJSONOutDir string
+	var host string
 
 	cmd := &cobra.Command{
 		Use:   "docs",
 		Short: "Generate API Docs docs from a Pulumi schema file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return pkg.GenerateDocs(repoSlug, version, schemaFile, docsOutDir, packageTreeJSONOutDir)
+			return pkg.GenerateDocs(host, repoSlug, version, schemaFile, docsOutDir, packageTreeJSONOutDir)
 		},
 	}
 
@@ -96,6 +99,7 @@ func PackageDocsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&docsOutDir, "docsOutDir", "", "The directory path to where the docs will be written to")
 	cmd.Flags().StringVar(&packageTreeJSONOutDir, "packageTreeJSONOutDir", "", "The directory path to write the "+
 		"package tree JSON file to")
+	cmd.Flags().StringVar(&host, "host", "https://raw.githubusercontent.com", "The url for source control host")
 
 	cmd.MarkFlagRequired("repoSlug")
 	cmd.MarkFlagRequired("docsOutDir")
