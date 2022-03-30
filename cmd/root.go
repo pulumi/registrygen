@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/pulumi/registrygen/cmd/docs"
 	"github.com/pulumi/registrygen/cmd/metadata"
+	"github.com/pulumi/registrygen/cmd/sdk"
 	"github.com/pulumi/registrygen/cmd/version"
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,7 @@ func RootCmd() *cobra.Command {
 	rootCmd.AddCommand(metadata.PackageMetadataCmd())
 	rootCmd.AddCommand(version.Command())
 	rootCmd.AddCommand(docs.GenerateCommand())
+	rootCmd.AddCommand(sdk.GenerateSdkCommand())
 
 	return rootCmd
 }
