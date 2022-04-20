@@ -22,23 +22,25 @@ func CheckVersion() *cobra.Command {
 		Short: "Check a Pulumi package version",
 		Long:  `Get the most recent version of a Pulumi package and compare with the version in the registry`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Checking the correct version on github")
-			fmt.Println(owner)
 			latest := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
 			version, err := getLatestVersion(latest)
 			if err != nil {
 				return err
 			}
 			pkgName := strings.TrimPrefix(repo, "pulumi-")
-			fmt.Println(pkgName)
 			pkgMetadata := fmt.Sprintf("https://raw.githubusercontent.com/pulumi/registry/master/themes/default/data/registry/packages/%s.yaml", pkgName)
 			regVersion, err := getRegistryVersion(pkgMetadata)
 			if err != nil {
 				return err
 			}
-			fmt.Println("Latest version:", version)
-			fmt.Println("Registry version:", regVersion)
+
 			// emit version tag if there's a difference, and not if there isn't
+			// we assume that the published latest version from the provider repo is the desired one, so any difference
+			// between versions should indicate an update to the registry version
+			// TODO: start with a print output but may have to write to a file
+			if version != regVersion {
+				fmt.Println(version)
+			}
 			return nil
 		},
 	}
