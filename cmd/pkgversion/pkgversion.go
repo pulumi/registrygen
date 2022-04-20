@@ -3,9 +3,12 @@ package pkgversion
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/pulumi/registrygen/pkg"
 	"github.com/spf13/cobra"
+
+	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -17,7 +20,7 @@ func CheckVersion() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pkgversion",
 		Short: "Check a Pulumi package version",
-		Long:  `Get the most recent version of a Pulumi package on the registry`,
+		Long:  `Get the most recent version of a Pulumi package and compare with the version in the registry`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Checking the correct version on github")
 			fmt.Println(owner)
@@ -28,13 +31,14 @@ func CheckVersion() *cobra.Command {
 			}
 			pkgName := strings.TrimPrefix(repo, "pulumi-")
 			fmt.Println(pkgName)
-			pkgMetadata := fmt.Sprintf("https://raw.githubusercontent.com/pulumi/registry/themes/default/data/registry/packages/%s", pkgName)
+			pkgMetadata := fmt.Sprintf("https://raw.githubusercontent.com/pulumi/registry/master/themes/default/data/registry/packages/%s.yaml", pkgName)
 			regVersion, err := getRegistryVersion(pkgMetadata)
 			if err != nil {
 				return err
 			}
-			fmt.Println("Latest version: ", version)
-			fmt.Println("Registry version: ", regVersion)
+			fmt.Println("Latest version:", version)
+			fmt.Println("Registry version:", regVersion)
+			// emit version tag if there's a difference, and not if there isn't
 			return nil
 		},
 	}
@@ -73,18 +77,20 @@ func getRegistryVersion(url string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("getting latest version from %s", url))
 	}
-
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		// this checks that the file exists and has content
-		return "", errors.Wrap(err, "this package has no metadata file yet")
+	if resp.StatusCode != 200 {
+		return "", errors.Wrap(err, "file not found")
+	}
+
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "failure reading contents of remote file")
 	}
 
 	var meta pkg.PackageMeta
-	err = json.NewDecoder(resp.Body).Decode(&meta)
-
+	err = yaml.Unmarshal(contents, &meta)
 	if err != nil {
-		return "", errors.Wrap(err, "failure reading contents of remote file")
+		return "", errors.Wrap(err, "error unmarshalling yaml file")
 	}
 
 	return meta.Version, nil
