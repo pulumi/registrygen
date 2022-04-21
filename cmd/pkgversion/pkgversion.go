@@ -34,10 +34,9 @@ func CheckVersion() *cobra.Command {
 				return err
 			}
 
-			// emit version tag if there's a difference, and not if there isn't
+			// print version tag if there's a difference, and not if there isn't
 			// we assume that the published latest version from the provider repo is the desired one, so any difference
 			// between versions should indicate an update to the registry version
-			// TODO: start with a print output but may have to write to a file
 			if version != regVersion {
 				fmt.Println(version)
 			}
