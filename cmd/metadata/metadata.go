@@ -246,7 +246,7 @@ func PackageMetadataCmd() *cobra.Command {
 	cmd.Flags().StringVar(&providerName, "providerName", "", "The name of the provider e.g. aws, aws-native. "+
 		"Required when there is no schemaFile flag specified.")
 	cmd.Flags().StringVarP(&schemaFile, "schemaFile", "s", "", "Relative path to the schema.json file from "+
-		"the root of the repository. If not schemaFile is specified, then providerName is required so the schemaFile path can "+
+		"the root of the repository. If no schemaFile is specified, then providerName is required so the schemaFile path can "+
 		"be inferred to be provider/cmd/pulumi-resource-<providerName>/schema.json")
 	cmd.Flags().StringVar(&version, "version", "", "The version of the package")
 	cmd.Flags().StringVar(&categoryStr, "category", "", fmt.Sprintf("The category for the package. Value must "+
