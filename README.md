@@ -5,7 +5,7 @@ generator package in `pulumi/pulumi` which uses the Pulumi schema for a package 
 
 ## Installation
 
-You can install the `resourcedocsgen` tool just like any other Go-based CLI tool:
+You can install the `registrygen` tool just like any other Go-based CLI tool:
 
 ```
 go install github.com/pulumi/registrygen@master
