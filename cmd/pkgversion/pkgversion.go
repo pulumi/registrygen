@@ -15,19 +15,25 @@ import (
 
 func CheckVersion() *cobra.Command {
 
-	var owner string
-	var repo string
+	var repoSlug string
 	cmd := &cobra.Command{
 		Use:   "pkgversion",
 		Short: "Check a Pulumi package version",
 		Long:  `Get the most recent version of a Pulumi package and compare with the version in the registry`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			latest := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
+			latest := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoSlug)
 			version, err := getLatestVersion(latest)
 			if err != nil {
 				return err
 			}
-			pkgName := strings.TrimPrefix(repo, "pulumi-")
+
+			repoName := ""
+			githubSlugParts := strings.Split(repoSlug, "/")
+			if len(githubSlugParts) > 0 {
+				repoName = githubSlugParts[1]
+			}
+
+			pkgName := strings.TrimPrefix(repoName, "pulumi-")
 			pkgMetadata := fmt.Sprintf("https://raw.githubusercontent.com/pulumi/registry/master/themes/default/data/registry/packages/%s.yaml", pkgName)
 			regVersion, err := getRegistryVersion(pkgMetadata)
 			if err != nil {
@@ -44,11 +50,8 @@ func CheckVersion() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&owner, "owner", "o", "", "The github owner or organization, e.g. pulumi")
-
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "The github repo for this package, e.g. pulumi-aws")
-	cmd.MarkFlagRequired("owner")
-	cmd.MarkFlagRequired("repo")
+	cmd.Flags().StringVar(&repoSlug, "repoSlug", "", "The repository slug e.g. pulumi/pulumi-provider")
+	cmd.MarkFlagRequired("repoSlug")
 	return cmd
 }
 
