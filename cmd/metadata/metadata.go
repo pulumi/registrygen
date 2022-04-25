@@ -52,6 +52,12 @@ func PackageMetadataCmd() *cobra.Command {
 				schemaFile = fmt.Sprintf("provider/cmd/pulumi-resource-%s/schema.json", providerName)
 			}
 
+			repoOwner := ""
+			githubSlugParts := strings.Split(repoSlug, "/")
+			if len(githubSlugParts) > 0 {
+				repoOwner = githubSlugParts[0]
+			}
+
 			// we should be able to take the repo URL + the version + the schema url and
 			// construct a file that we can download and read
 			schemaFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s",
@@ -169,10 +175,13 @@ func PackageMetadataCmd() *cobra.Command {
 				native = false
 			}
 
+			// we want to check the repoSlug and if the repoSlu is NOT pulumi then we can't default to Pulumi
 			if publisher == "" && mainSpec.Publisher != "" {
 				publisher = mainSpec.Publisher
-			} else if publisher == "" {
+			} else if publisher == "" && strings.ToLower(repoOwner) == "pulumi" {
 				publisher = "Pulumi"
+			} else {
+				return errors.New("unable to determine package publisher")
 			}
 
 			cleanSchemaFilePath := func(s string) string {
