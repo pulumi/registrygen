@@ -44,18 +44,23 @@ func PackageMetadataCmd() *cobra.Command {
 		Short: "Generate package metadata from Pulumi schema",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if schemaFile == "" && providerName == "" {
-				return fmt.Errorf("`providerName` is required when `schemaFile` is not specified")
-			}
-
-			if schemaFile == "" {
-				schemaFile = fmt.Sprintf("provider/cmd/pulumi-resource-%s/schema.json", providerName)
+			if strings.Contains(repoSlug, "https") || strings.Contains(repoSlug, "github.com") {
+				return errors.New(fmt.Sprintf("Expected repoSlug to be in the format of `owner/repo`"+
+					" but got %q", repoSlug))
 			}
 
 			repoOwner := ""
 			githubSlugParts := strings.Split(repoSlug, "/")
 			if len(githubSlugParts) > 0 {
 				repoOwner = githubSlugParts[0]
+			}
+
+			if schemaFile == "" && providerName == "" {
+				return fmt.Errorf("`providerName` is required when `schemaFile` is not specified")
+			}
+
+			if schemaFile == "" {
+				schemaFile = fmt.Sprintf("provider/cmd/pulumi-resource-%s/schema.json", providerName)
 			}
 
 			// we should be able to take the repo URL + the version + the schema url and

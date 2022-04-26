@@ -21,16 +21,22 @@ func CheckVersion() *cobra.Command {
 		Short: "Check a Pulumi package version",
 		Long:  `Get the most recent version of a Pulumi package and compare with the version in the registry`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			latest := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoSlug)
-			version, err := getLatestVersion(latest)
-			if err != nil {
-				return err
+
+			if strings.Contains(repoSlug, "https") || strings.Contains(repoSlug, "github.com") {
+				return errors.New(fmt.Sprintf("Expected repoSlug to be in the format of `owner/repo`"+
+					" but got %q", repoSlug))
 			}
 
 			repoName := ""
 			githubSlugParts := strings.Split(repoSlug, "/")
 			if len(githubSlugParts) > 0 {
 				repoName = githubSlugParts[1]
+			}
+
+			latest := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoSlug)
+			version, err := getLatestVersion(latest)
+			if err != nil {
+				return err
 			}
 
 			pkgName := strings.TrimPrefix(repoName, "pulumi-")
