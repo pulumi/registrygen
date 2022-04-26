@@ -44,6 +44,17 @@ func PackageMetadataCmd() *cobra.Command {
 		Short: "Generate package metadata from Pulumi schema",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			if strings.Contains(repoSlug, "https") || strings.Contains(repoSlug, "github.com") {
+				return errors.New(fmt.Sprintf("Expected repoSlug to be in the format of `owner/repo`"+
+					" but got %q", repoSlug))
+			}
+
+			repoOwner := ""
+			githubSlugParts := strings.Split(repoSlug, "/")
+			if len(githubSlugParts) > 0 {
+				repoOwner = githubSlugParts[0]
+			}
+
 			if schemaFile == "" && providerName == "" {
 				return fmt.Errorf("`providerName` is required when `schemaFile` is not specified")
 			}
@@ -169,10 +180,13 @@ func PackageMetadataCmd() *cobra.Command {
 				native = false
 			}
 
+			// we want to check the repoSlug and if the repoSlu is NOT pulumi then we can't default to Pulumi
 			if publisher == "" && mainSpec.Publisher != "" {
 				publisher = mainSpec.Publisher
-			} else if publisher == "" {
+			} else if publisher == "" && strings.ToLower(repoOwner) == "pulumi" {
 				publisher = "Pulumi"
+			} else {
+				return errors.New("unable to determine package publisher")
 			}
 
 			cleanSchemaFilePath := func(s string) string {
