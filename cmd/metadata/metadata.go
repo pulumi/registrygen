@@ -49,14 +49,19 @@ func PackageMetadataCmd() *cobra.Command {
 					" but got %q", repoSlug))
 			}
 
+			repoName := ""
 			repoOwner := ""
 			githubSlugParts := strings.Split(repoSlug, "/")
 			if len(githubSlugParts) > 0 {
 				repoOwner = githubSlugParts[0]
+				repoName = githubSlugParts[1]
+			} else {
+				return errors.New(fmt.Sprintf("Expected repoSlug to be in the format of `owner/repo`"+
+					" but got %q", repoSlug))
 			}
 
 			if schemaFile == "" && providerName == "" {
-				return fmt.Errorf("`providerName` is required when `schemaFile` is not specified")
+				providerName = strings.Replace(repoName, "pulumi-", "", -1)
 			}
 
 			if schemaFile == "" {
@@ -180,11 +185,17 @@ func PackageMetadataCmd() *cobra.Command {
 				native = false
 			}
 
-			// we want to check the repoSlug and if the repoSlu is NOT pulumi then we can't default to Pulumi
-			if publisher == "" && mainSpec.Publisher != "" {
-				publisher = mainSpec.Publisher
+			// if there's a publisher then we need to use that immediately
+			// if there is no publisher on cmd, then try and use packageSpec
+			// if there's no publisher or packageSpec publisher and the repo is Pulumi then assume Publisher
+			// otherwise error
+			publisherName := ""
+			if publisher != "" {
+				publisherName = publisher
+			} else if publisher == "" && mainSpec.Publisher != "" {
+				publisherName = mainSpec.Publisher
 			} else if publisher == "" && strings.ToLower(repoOwner) == "pulumi" {
-				publisher = "Pulumi"
+				publisherName = "Pulumi"
 			} else {
 				return errors.New("unable to determine package publisher")
 			}
@@ -199,7 +210,7 @@ func PackageMetadataCmd() *cobra.Command {
 				Name:        mainSpec.Name,
 				Description: mainSpec.Description,
 				LogoURL:     mainSpec.LogoURL,
-				Publisher:   publisher,
+				Publisher:   publisherName,
 				Title:       title,
 
 				RepoURL:        mainSpec.Repository,
