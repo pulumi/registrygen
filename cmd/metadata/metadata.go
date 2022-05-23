@@ -139,7 +139,8 @@ func PackageMetadataCmd() *cobra.Command {
 			mainSpec.Version = version
 
 			if mainSpec.Repository == "" {
-				return errors.New("repository field must be set in the package schema")
+				// we already know the repo slug so we can reconstruct the repository name using that
+				mainSpec.Repository = fmt.Sprintf("https://github.com/%s", repoSlug)
 			}
 
 			status := pkg.PackageStatusGA
