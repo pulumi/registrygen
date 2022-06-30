@@ -9,4 +9,5 @@ require (
 	github.com/pulumi/pulumi/pkg/v3 v3.21.1
 	github.com/pulumi/pulumi/sdk/v3 v3.21.1
 	github.com/spf13/cobra v1.2.1
+	golang.org/x/text v0.3.7
 )

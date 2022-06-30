@@ -14,6 +14,8 @@ import (
 	pschema "github.com/pulumi/pulumi/pkg/v3/codegen/schema"
 	"github.com/pulumi/registrygen/pkg"
 	"github.com/spf13/cobra"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const defaultPackageCategory = pkg.PackageCategoryCloud
@@ -195,8 +197,8 @@ func PackageMetadataCmd() *cobra.Command {
 				publisherName = publisher
 			} else if publisher == "" && mainSpec.Publisher != "" {
 				publisherName = mainSpec.Publisher
-			} else if publisher == "" && strings.ToLower(repoOwner) != "" {
-				publisherName = repoOwner
+			} else if publisher == "" && repoOwner != "" {
+				publisherName = cases.Title(language.Und, cases.NoLower).String(repoOwner)
 			} else {
 				return errors.New("unable to determine package publisher")
 			}
