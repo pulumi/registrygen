@@ -105,7 +105,7 @@ func getOverlaySchema() ([]byte, error) {
 	return b, nil
 }
 
-func GenerateDocs(repoURL, version, schemaFile, docsOutDir, packageTreeJSONOutDir string) error {
+func GenerateDocs(host, repoURL, version, schemaFile, docsOutDir, packageTreeJSONOutDir string) error {
 	repoSlug, err := getRepoSlug(repoURL)
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func GenerateDocs(repoURL, version, schemaFile, docsOutDir, packageTreeJSONOutDi
 
 	// we should be able to take the repo URL + the version + the schema url and
 	// construct a file that we can download and read
-	schemaFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s", repoSlug, version, schemaFile)
+	schemaFilePath := fmt.Sprintf("%s/%s/%s/%s", host, repoSlug, version, schemaFile)
 	resp, err := http.Get(schemaFilePath)
 	if err != nil {
 		return fmt.Errorf("downloading schema file from %s: %w", schemaFile, err)
