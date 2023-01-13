@@ -407,7 +407,6 @@ func getGitHubTags(repoSlug string) ([]pkg.GitHubTag, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s", repoSlug))
 	}
-
 	defer tagsResp.Body.Close()
 
 	if tagsResp.StatusCode != 200 {
@@ -416,7 +415,7 @@ func getGitHubTags(repoSlug string) ([]pkg.GitHubTag, error) {
 			return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s: %s", repoSlug, tagsResp.Status))
 		}
 
-		return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s: %s", repoSlug, string(respBody)))
+		return nil, fmt.Errorf("getting tags info for %s: %s", repoSlug, string(respBody))
 	}
 
 	err = json.NewDecoder(tagsResp.Body).Decode(&tags)
