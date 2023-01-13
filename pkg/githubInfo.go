@@ -1,6 +1,8 @@
 package pkg
 
-import "time"
+import (
+	"time"
+)
 
 type GitHubTag struct {
 	Name       string `json:"name"`
