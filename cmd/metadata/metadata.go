@@ -3,11 +3,13 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/golang/glog"
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
@@ -94,18 +96,9 @@ func PackageMetadataCmd() *cobra.Command {
 			}
 
 			// try and get the version release data using the github releases API
-			tagsUrl := fmt.Sprintf("https://api.github.com/repos/%s/tags", repoSlug)
-
-			var tags []pkg.GitHubTag
-			tagsResp, err := http.Get(tagsUrl)
+			tags, err := getGitHubTags(repoSlug)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("getting tags info for %s", repoSlug))
-			}
-
-			defer tagsResp.Body.Close()
-			err = json.NewDecoder(tagsResp.Body).Decode(&tags)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("constructing tags information for %s", repoSlug))
+				return errors.Wrap(err, "github tags")
 			}
 
 			var commitDetails string
@@ -404,4 +397,31 @@ func getTagFromKeywords(keywords []string, tag string) *string {
 
 	glog.V(2).Infof("The tag %q was not found in the package's keywords", tag)
 	return nil
+}
+
+func getGitHubTags(repoSlug string) ([]pkg.GitHubTag, error) {
+	tagsUrl := fmt.Sprintf("https://api.github.com/repos/%s/tags", repoSlug)
+
+	var tags []pkg.GitHubTag
+	tagsResp, err := http.Get(tagsUrl)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s", repoSlug))
+	}
+	defer tagsResp.Body.Close()
+
+	if tagsResp.StatusCode != 200 {
+		respBody, err := io.ReadAll(tagsResp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s: %s", repoSlug, tagsResp.Status))
+		}
+
+		return nil, fmt.Errorf("getting tags info for %s: %s", repoSlug, string(respBody))
+	}
+
+	err = json.NewDecoder(tagsResp.Body).Decode(&tags)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("constructing tags information for %s", repoSlug))
+	}
+
+	return tags, nil
 }
