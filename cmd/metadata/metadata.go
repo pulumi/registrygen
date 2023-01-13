@@ -400,10 +400,8 @@ func getTagFromKeywords(keywords []string, tag string) *string {
 }
 
 func getGitHubTags(repoSlug string) ([]pkg.GitHubTag, error) {
-	tagsUrl := fmt.Sprintf("https://api.github.com/repos/%s/tags", repoSlug)
-
-	var tags []pkg.GitHubTag
-	tagsResp, err := http.Get(tagsUrl)
+	path := fmt.Sprintf("/repos/%s/tags", repoSlug)
+	tagsResp, err := pkg.GetGitHubAPI(path)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s", repoSlug))
 	}
@@ -418,6 +416,7 @@ func getGitHubTags(repoSlug string) ([]pkg.GitHubTag, error) {
 		return nil, fmt.Errorf("getting tags info for %s: %s", repoSlug, string(respBody))
 	}
 
+	var tags []pkg.GitHubTag
 	err = json.NewDecoder(tagsResp.Body).Decode(&tags)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("constructing tags information for %s", repoSlug))
