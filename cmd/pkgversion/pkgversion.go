@@ -3,6 +3,7 @@ package pkgversion
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/pulumi/registrygen/pkg"
@@ -33,8 +34,7 @@ func CheckVersion() *cobra.Command {
 				repoName = githubSlugParts[1]
 			}
 
-			latest := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoSlug)
-			version, err := getLatestVersion(latest)
+			version, err := getLatestVersion(repoSlug)
 			if err != nil {
 				return err
 			}
@@ -61,15 +61,17 @@ func CheckVersion() *cobra.Command {
 	return cmd
 }
 
-func getLatestVersion(url string) (string, error) {
-	resp, err := http.Get(url)
+func getLatestVersion(repoSlug string) (string, error) {
+	path := fmt.Sprintf("/repos/%s/releases/latest", repoSlug)
+	resp, err := pkg.GetGitHubAPI(path)
+
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("getting latest version from %s", url))
+		return "", errors.Wrap(err, fmt.Sprintf("getting latest version from https://api.github.com%s", path))
 	}
 
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", errors.Wrap(err, fmt.Sprintf("Could not find a release at %s", url))
+		return "", errors.Wrap(err, fmt.Sprintf("Could not find a release at https://api.github.com%s", path))
 	}
 
 	var tag pkg.GitHubTag
