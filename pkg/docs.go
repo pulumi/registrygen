@@ -1,15 +1,12 @@
 package pkg
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -31,8 +28,6 @@ var (
 	// could have a hand-authored overlays schema spec in the overlays folder that could be
 	// merged into it.
 	mainSpec *pschema.PackageSpec
-	//go:embed overlays/**/*.json
-	overlays embed.FS
 )
 
 func getRepoSlug(repoURL string) (string, error) {
@@ -45,22 +40,6 @@ func getRepoSlug(repoURL string) (string, error) {
 }
 
 func getPulumiPackageFromSchema(docsOutDir string) (*pschema.Package, error) {
-	overlaysSchemaFile, err := getOverlaySchema()
-	if err != nil {
-		return nil, fmt.Errorf("getting overlays schema: %w", err)
-	}
-
-	if overlaysSchemaFile != nil {
-		overlaySpec := &pschema.PackageSpec{}
-
-		if err := json.Unmarshal(overlaysSchemaFile, overlaySpec); err != nil {
-			return nil, fmt.Errorf("unmarshalling overlay schema into a PackageSpec: %w", err)
-		}
-
-		if err := mergeOverlaySchemaSpec(mainSpec, overlaySpec); err != nil {
-			return nil, fmt.Errorf("merging the overlay schema spec with the main spec: %w", err)
-		}
-	}
 
 	// Delete existing docs before generating new ones.
 	if err := os.RemoveAll(docsOutDir); err != nil {
@@ -75,34 +54,6 @@ func getPulumiPackageFromSchema(docsOutDir string) (*pschema.Package, error) {
 	docsgen.Initialize(tool, pulPkg)
 
 	return pulPkg, nil
-}
-
-// getOverlaySchema returns the overlay file contents for the package.
-// Returns nil if there is no overlay file for the package.
-func getOverlaySchema() ([]byte, error) {
-	// Test the expected path for an overlays file. If there is no such file, assume
-	// that the package has no overlays.
-	overlayFilePath := filepath.Join("overlays", mainSpec.Name, "overlays.json")
-	f, err := overlays.Open(overlayFilePath)
-	if err != nil {
-		pathErr := err.(*fs.PathError)
-		if pathErr.Err == fs.ErrNotExist {
-			overlayFilePath = ""
-		} else {
-			return nil, fmt.Errorf("checking embedded overlays fs for overlay file: %w", err)
-		}
-	}
-
-	if overlayFilePath == "" {
-		return nil, nil
-	}
-
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, fmt.Errorf("reading overlay file from embedded fs: %w", err)
-	}
-
-	return b, nil
 }
 
 func GenerateDocs(repoURL, version, schemaFile, docsOutDir, packageTreeJSONOutDir string) error {
