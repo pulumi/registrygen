@@ -20,7 +20,13 @@ func CheckVersion() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pkgversion",
 		Short: "Check a Pulumi package version",
-		Long:  `Get the most recent version of a Pulumi package and compare with the version in the registry`,
+		Long: `Print the most recent version of a Pulumi package. If the most recent version of a Pulumi package is the same as the version published in the Pulumi Registry, print nothing.
+
+The most recent version of a Pulumi package is taken to be the most recent release published in GitHub.
+
+The version in the registry is defined in the YAML file at:
+
+    https://raw.githubusercontent.com/pulumi/registry/master/themes/default/data/registry/packages/${PKG#pulumi/pulumi-}.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if strings.Contains(repoSlug, "https") || strings.Contains(repoSlug, "github.com") {
