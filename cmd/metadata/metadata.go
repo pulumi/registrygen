@@ -3,7 +3,6 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -96,7 +95,7 @@ func PackageMetadataCmd() *cobra.Command {
 			}
 
 			// try and get the version release data using the github releases API
-			tags, err := getGitHubTags(repoSlug)
+			tags, err := pkg.GetGitHubTags(repoSlug)
 			if err != nil {
 				return errors.Wrap(err, "github tags")
 			}
@@ -243,19 +242,47 @@ func PackageMetadataCmd() *cobra.Command {
 			}
 
 			requiredFiles := []string{
-				"_index.md",
-				"installation-configuration.md",
+				"docs/_index.md",
+				"docs/installation-configuration.md",
 			}
-			for _, requiredFile := range requiredFiles {
-				requiredFilePath := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/docs/%s",
-					repoSlug, version, requiredFile)
-				details, err := readRemoteFile(requiredFilePath)
+
+			/*
+				1. Load initial data for https://api.github.com/repos/<repoSlug>/contents/docs?ref=<version>
+				2. Add all files to an array
+				3. Check if all required (top-level) files are present
+				4. If any sub-directories are detected (type==dir)
+				   -> cursively coll the contents api using the url property and add the files to the result array
+				5. Download all files from the array using the "download_url" property
+			*/
+
+			files, err := pkg.GetGitHubFileContents(repoSlug, "docs", version)
+			if err != nil {
+				return err
+			}
+
+			fileMap := map[string]pkg.RepositoryContent{}
+			for _, f := range *files {
+				fileMap[*f.Path] = f
+			}
+
+			iFound := 0
+			for _, file := range requiredFiles {
+				if _, ok := fileMap[file]; ok {
+					iFound++
+				}
+			}
+			if iFound < len(requiredFiles) {
+				return fmt.Errorf("not all required files has been found in %s/docs folder", repoSlug)
+			}
+
+			for path, file := range fileMap {
+				details, err := readRemoteFile(*file.DownloadURL)
 				if err != nil {
 					return err
 				}
 
-				if err := pkg.EmitFile(packageDocsDir, requiredFile, details); err != nil {
-					return errors.Wrap(err, fmt.Sprintf("writing %s file", requiredFile))
+				if err := pkg.EmitFile(packageDocsDir, strings.TrimPrefix(path, "docs/"), details); err != nil {
+					return errors.Wrap(err, fmt.Sprintf("writing %s file", path))
 				}
 			}
 
@@ -397,30 +424,4 @@ func getTagFromKeywords(keywords []string, tag string) *string {
 
 	glog.V(2).Infof("The tag %q was not found in the package's keywords", tag)
 	return nil
-}
-
-func getGitHubTags(repoSlug string) ([]pkg.GitHubTag, error) {
-	path := fmt.Sprintf("/repos/%s/tags", repoSlug)
-	tagsResp, err := pkg.GetGitHubAPI(path)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s", repoSlug))
-	}
-	defer tagsResp.Body.Close()
-
-	if tagsResp.StatusCode != 200 {
-		respBody, err := io.ReadAll(tagsResp.Body)
-		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("getting tags info for %s: %s", repoSlug, tagsResp.Status))
-		}
-
-		return nil, fmt.Errorf("getting tags info for %s: %s", repoSlug, string(respBody))
-	}
-
-	var tags []pkg.GitHubTag
-	err = json.NewDecoder(tagsResp.Body).Decode(&tags)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("constructing tags information for %s", repoSlug))
-	}
-
-	return tags, nil
 }
