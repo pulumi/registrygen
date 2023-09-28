@@ -90,7 +90,7 @@ func GetGitHubFileContents(repoSlug, repoPath, version string) (result *[]Reposi
 }
 
 func getGitHubFileContents(path string) (result *[]RepositoryContent, err error) {
-	rawJSON, err := GetGitHubAPI(path)
+	rawJSON, err := GetGitHubAPI(strings.TrimPrefix(path, "https://api.github.com"))
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("getting content for path %s", path))
 		return
