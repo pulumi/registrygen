@@ -246,15 +246,6 @@ func PackageMetadataCmd() *cobra.Command {
 				"docs/installation-configuration.md",
 			}
 
-			/*
-				1. Load initial data for https://api.github.com/repos/<repoSlug>/contents/docs?ref=<version>
-				2. Add all files to an array
-				3. Check if all required (top-level) files are present
-				4. If any sub-directories are detected (type==dir)
-				   -> cursively coll the contents api using the url property and add the files to the result array
-				5. Download all files from the array using the "download_url" property
-			*/
-
 			files, err := pkg.GetGitHubFileContents(repoSlug, "docs", version)
 			if err != nil {
 				return err
