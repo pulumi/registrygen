@@ -316,7 +316,11 @@ func PackageMetadataCmd() *cobra.Command {
 }
 
 func readRemoteFile(url string) ([]byte, error) {
-	resp, err := http.Get(url)
+	client, err := pkg.GetGitHubCLient()
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("downloading remote file from %s", url))
+	}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("downloading remote file from %s", url))
 	}
