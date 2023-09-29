@@ -31,7 +31,6 @@ func GetGitHubCLient() (client *http.Client, err error) {
 }
 
 func GetGitHubAPI(path string) (*http.Response, error) {
-	token := os.Getenv("GITHUB_TOKEN")
 	if !strings.HasPrefix(path, "https://api.github.com") {
 		path = fmt.Sprintf("https://api.github.com%s", path)
 	}
@@ -49,7 +48,7 @@ func GetGitHubAPI(path string) (*http.Response, error) {
 		"Content-Type": {"application/json"},
 	}
 
-	if token != "" {
+	if token, ok := os.LookupEnv("GITHUB_TOKEN"); ok && token != "" {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
