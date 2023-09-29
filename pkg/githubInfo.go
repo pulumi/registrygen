@@ -7,21 +7,40 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofri/go-github-ratelimit/github_ratelimit"
 	"github.com/pkg/errors"
 )
 
+var ghClient *http.Client
+var mtx sync.Mutex
+
+func GetGitHubCLient() (client *http.Client, err error) {
+	mtx.Lock()
+	defer mtx.Unlock()
+	if ghClient == nil {
+		client, err = github_ratelimit.NewRateLimitWaiterClient(nil, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "creating GitHub rate limiter client")
+		}
+		ghClient = client
+	}
+	return ghClient, nil
+}
+
 func GetGitHubAPI(path string) (*http.Response, error) {
 	token := os.Getenv("GITHUB_TOKEN")
-	url := fmt.Sprintf("https://api.github.com%s", path)
-
-	client, err := github_ratelimit.NewRateLimitWaiterClient(nil, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating GitHub rate limiter client")
+	if !strings.HasPrefix(path, "https://api.github.com") {
+		path = fmt.Sprintf("https://api.github.com%s", path)
 	}
-	req, err := http.NewRequest("GET", url, nil)
+
+	client, err := GetGitHubCLient()
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating request")
 	}
@@ -90,7 +109,7 @@ func GetGitHubFileContents(repoSlug, repoPath, version string) (result *[]Reposi
 }
 
 func getGitHubFileContents(path string) (result *[]RepositoryContent, err error) {
-	rawJSON, err := GetGitHubAPI(strings.TrimPrefix(path, "https://api.github.com"))
+	rawJSON, err := GetGitHubAPI(path)
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("getting content for path %s", path))
 		return
